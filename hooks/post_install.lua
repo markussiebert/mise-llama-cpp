@@ -203,7 +203,6 @@ function build_llama_cpp(install_path, source_dir, oneapi_path, device_arch, cca
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_INSTALL_PREFIX='" .. install_path .. "'",
         "-DGGML_SYCL_DNN=ON",
-        "-DLLAMA_CURL=OFF",
     }
 
     -- Use ccache as compiler launcher to cache object files across builds
