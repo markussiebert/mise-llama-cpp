@@ -23,6 +23,11 @@ function PLUGIN:EnvKeys(ctx)
             key = "LD_LIBRARY_PATH",
             value = mainPath .. "/lib",
         },
+        -- Enable GPU free memory detection (suppresses ZES_ENABLE_SYSMAN warnings)
+        {
+            key = "ZES_ENABLE_SYSMAN",
+            value = "1",
+        },
     }
 
     -- Add oneAPI runtime library paths (using "latest" symlinks for version independence)
