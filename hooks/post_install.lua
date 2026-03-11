@@ -122,37 +122,44 @@ function detect_device_arch(oneapi_path)
         return nil
     end
 
-    -- Try to extract device architecture from sycl-ls output
-    -- Look for Intel GPU devices and map to architecture codes
-    -- Common architectures: bmg (Battlemage), acm/dg2 (Arc), pvc (Ponte Vecchio)
+    -- Map sycl-ls device names to valid --offload-arch values
+    -- See: https://github.com/intel/llvm/blob/sycl/sycl/doc/design/OffloadDesign.md
     local arch_patterns = {
         -- Battlemage (BMG)
-        { pattern = "[Bb]attlemage", arch = "bmg" },
-        { pattern = "BMG",          arch = "bmg" },
-        { pattern = "B580",         arch = "bmg" },
-        { pattern = "B570",         arch = "bmg" },
-        -- Arc / Alchemist (ACM/DG2)
-        { pattern = "[Aa]lchemist", arch = "acm" },
-        { pattern = "ACM",          arch = "acm" },
-        { pattern = "DG2",          arch = "dg2" },
-        { pattern = "Arc A",        arch = "acm" },
-        { pattern = "A770",         arch = "acm" },
-        { pattern = "A750",         arch = "acm" },
-        { pattern = "A580",         arch = "acm" },
-        { pattern = "A380",         arch = "acm" },
+        { pattern = "[Bb]attlemage", arch = "bmg_g21" },
+        { pattern = "BMG",          arch = "bmg_g21" },
+        { pattern = "B580",         arch = "bmg_g21" },
+        { pattern = "B570",         arch = "bmg_g21" },
+        -- Arc A-series / Alchemist G10 (A770, A750, A580)
+        { pattern = "A770",         arch = "acm_g10" },
+        { pattern = "A750",         arch = "acm_g10" },
+        { pattern = "A580",         arch = "acm_g10" },
+        -- Arc A-series / Alchemist G11 (A380, A310)
+        { pattern = "A380",         arch = "acm_g11" },
+        { pattern = "A310",         arch = "acm_g11" },
+        -- Arc / Alchemist generic fallbacks
+        { pattern = "[Aa]lchemist", arch = "acm_g10" },
+        { pattern = "Arc A",        arch = "acm_g10" },
+        { pattern = "DG2",          arch = "acm_g10" },
         -- Ponte Vecchio (PVC) - Data Center GPU Max
+        { pattern = "GPU Max",      arch = "pvc" },
         { pattern = "[Pp]onte",     arch = "pvc" },
         { pattern = "PVC",          arch = "pvc" },
-        { pattern = "GPU Max",      arch = "pvc" },
         -- Lunar Lake (LNL) - integrated
-        { pattern = "[Ll]unar",     arch = "lnl" },
-        { pattern = "LNL",          arch = "lnl" },
-        -- Arrow Lake (ARL) - integrated
-        { pattern = "[Aa]rrow",     arch = "arl" },
-        { pattern = "ARL",          arch = "arl" },
-        -- Meteor Lake (MTL) - integrated
-        { pattern = "[Mm]eteor",    arch = "mtl" },
-        { pattern = "MTL",          arch = "mtl" },
+        { pattern = "[Ll]unar",     arch = "lnl_m" },
+        { pattern = "LNL",          arch = "lnl_m" },
+        -- Arrow Lake H - integrated
+        { pattern = "[Aa]rrow.*H",  arch = "arl_h" },
+        { pattern = "ARL.*H",       arch = "arl_h" },
+        -- Arrow Lake U/S - integrated (same as mtl_s)
+        { pattern = "[Aa]rrow",     arch = "mtl_s" },
+        { pattern = "ARL",          arch = "mtl_s" },
+        -- Meteor Lake H - integrated
+        { pattern = "[Mm]eteor.*H", arch = "mtl_h" },
+        { pattern = "MTL.*H",       arch = "mtl_h" },
+        -- Meteor Lake U/S - integrated
+        { pattern = "[Mm]eteor",    arch = "mtl_s" },
+        { pattern = "MTL",          arch = "mtl_s" },
     }
 
     for _, entry in ipairs(arch_patterns) do
