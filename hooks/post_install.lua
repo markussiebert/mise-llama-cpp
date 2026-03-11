@@ -24,8 +24,24 @@ function PLUGIN:PostInstall(ctx)
     -- Build llama.cpp with SYCL
     build_llama_cpp(path, source_dir, oneapi_path, ccache_available)
 
-    -- Clean up source directory to save disk space
-    os.execute("rm -rf '" .. source_dir .. "'")
+    -- Clean up source/build artifacts to save disk space (but not the install dir itself)
+    if source_dir ~= path then
+        os.execute("rm -rf '" .. source_dir .. "'")
+    else
+        -- Source was extracted directly into install path — remove build artifacts only
+        os.execute("rm -rf '" .. path .. "/build'")
+        os.execute("rm -rf '" .. path .. "/CMakeLists.txt' '" .. path .. "/CMakePresets.json'")
+        os.execute("rm -rf '" .. path .. "/ggml' '" .. path .. "/src' '" .. path .. "/common'")
+        os.execute("rm -rf '" .. path .. "/examples' '" .. path .. "/tests' '" .. path .. "/vendor'")
+        os.execute("rm -rf '" .. path .. "/tools' '" .. path .. "/models' '" .. path .. "/scripts'")
+        os.execute("rm -rf '" .. path .. "/docs' '" .. path .. "/grammars' '" .. path .. "/prompts'")
+        os.execute("rm -rf '" .. path .. "/.clang-format' '" .. path .. "/.clang-tidy'")
+        os.execute("rm -rf '" .. path .. "/.devops' '" .. path .. "/.github'")
+        os.execute("rm -rf '" .. path .. "/Makefile' '" .. path .. "/SECURITY.md'")
+        os.execute("rm -rf '" .. path .. "/LICENSE' '" .. path .. "/README.md'")
+        os.execute("rm -rf '" .. path .. "/CHANGELOG.md' '" .. path .. "/CONTRIBUTING.md'")
+        os.execute("rm -rf '" .. path .. "/requirements'")
+    end
 
     -- Verify the build
     verify_build(path)
