@@ -6,46 +6,28 @@ function PLUGIN:Available(ctx)
     local http = require("http")
     local json = require("json")
 
+    -- Only fetch the first page — GitHub returns newest first,
+    -- so this covers latest + recent versions. No need to paginate
+    -- through all 1000+ releases.
+    local resp, err = http.get({
+        url = "https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=100&page=1",
+    })
+
+    if err ~= nil then
+        error("Failed to fetch releases: " .. err)
+    end
+
     local versions = {}
-    local page = 1
-    local per_page = 100
 
-    -- GitHub API limits to 1000 results (10 pages of 100)
-    local max_pages = 10
-
-    while page <= max_pages do
-        local resp, err = http.get({
-            url = "https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page="
-                .. per_page
-                .. "&page="
-                .. page,
-        })
-
-        if err ~= nil then
-            error("Failed to fetch releases: " .. err)
-        end
-        if resp.status_code ~= 200 then
-            break
-        end
-
+    if resp.status_code == 200 then
         local releases = json.decode(resp.body)
-        if #releases == 0 then
-            break
-        end
-
         for _, release in ipairs(releases) do
             if not release.prerelease and not release.draft then
-                local version = release.tag_name
                 table.insert(versions, {
-                    version = version,
+                    version = release.tag_name,
                 })
             end
         end
-
-        if #releases < per_page then
-            break
-        end
-        page = page + 1
     end
 
     -- Sort ascending by build number (tags are "b1234")
