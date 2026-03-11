@@ -18,14 +18,11 @@ function PLUGIN:PostInstall(ctx)
     -- Detect Intel oneAPI environment
     local oneapi_path = detect_oneapi()
 
-    -- Detect GPU architecture for optimal build
-    local device_arch = detect_device_arch(oneapi_path)
-
     -- Detect ccache for build caching
     local ccache_available = detect_ccache()
 
     -- Build llama.cpp with SYCL
-    build_llama_cpp(path, source_dir, oneapi_path, device_arch, ccache_available)
+    build_llama_cpp(path, source_dir, oneapi_path, ccache_available)
 
     -- Clean up source directory to save disk space
     os.execute("rm -rf '" .. source_dir .. "'")
@@ -101,76 +98,6 @@ function detect_oneapi()
     )
 end
 
---- Detect SYCL device architecture for optimal performance
---- @param oneapi_path string Path to oneAPI installation
---- @return string|nil Device architecture string or nil
-function detect_device_arch(oneapi_path)
-    -- Source oneAPI environment and query sycl-ls for device info
-    local handle = io.popen(
-        "bash -c 'source \""
-            .. oneapi_path
-            .. "/setvars.sh\" --force 2>/dev/null && sycl-ls 2>/dev/null'"
-    )
-    if not handle then
-        return nil
-    end
-
-    local output = handle:read("*a")
-    handle:close()
-
-    if not output or output == "" then
-        return nil
-    end
-
-    -- Map sycl-ls device names to valid --offload-arch values
-    -- See: https://github.com/intel/llvm/blob/sycl/sycl/doc/design/OffloadDesign.md
-    local arch_patterns = {
-        -- Battlemage (BMG)
-        { pattern = "[Bb]attlemage", arch = "bmg_g21" },
-        { pattern = "BMG",          arch = "bmg_g21" },
-        { pattern = "B580",         arch = "bmg_g21" },
-        { pattern = "B570",         arch = "bmg_g21" },
-        -- Arc A-series / Alchemist G10 (A770, A750, A580)
-        { pattern = "A770",         arch = "acm_g10" },
-        { pattern = "A750",         arch = "acm_g10" },
-        { pattern = "A580",         arch = "acm_g10" },
-        -- Arc A-series / Alchemist G11 (A380, A310)
-        { pattern = "A380",         arch = "acm_g11" },
-        { pattern = "A310",         arch = "acm_g11" },
-        -- Arc / Alchemist generic fallbacks
-        { pattern = "[Aa]lchemist", arch = "acm_g10" },
-        { pattern = "Arc A",        arch = "acm_g10" },
-        { pattern = "DG2",          arch = "acm_g10" },
-        -- Ponte Vecchio (PVC) - Data Center GPU Max
-        { pattern = "GPU Max",      arch = "pvc" },
-        { pattern = "[Pp]onte",     arch = "pvc" },
-        { pattern = "PVC",          arch = "pvc" },
-        -- Lunar Lake (LNL) - integrated
-        { pattern = "[Ll]unar",     arch = "lnl_m" },
-        { pattern = "LNL",          arch = "lnl_m" },
-        -- Arrow Lake H - integrated
-        { pattern = "[Aa]rrow.*H",  arch = "arl_h" },
-        { pattern = "ARL.*H",       arch = "arl_h" },
-        -- Arrow Lake U/S - integrated (same as mtl_s)
-        { pattern = "[Aa]rrow",     arch = "mtl_s" },
-        { pattern = "ARL",          arch = "mtl_s" },
-        -- Meteor Lake H - integrated
-        { pattern = "[Mm]eteor.*H", arch = "mtl_h" },
-        { pattern = "MTL.*H",       arch = "mtl_h" },
-        -- Meteor Lake U/S - integrated
-        { pattern = "[Mm]eteor",    arch = "mtl_s" },
-        { pattern = "MTL",          arch = "mtl_s" },
-    }
-
-    for _, entry in ipairs(arch_patterns) do
-        if output:find(entry.pattern) then
-            return entry.arch
-        end
-    end
-
-    return nil
-end
-
 --- Detect ccache for build caching
 --- @return boolean Whether ccache is available
 function detect_ccache()
@@ -188,9 +115,8 @@ end
 --- @param install_path string Where to install the built binaries
 --- @param source_dir string Path to the extracted source
 --- @param oneapi_path string Path to oneAPI installation
---- @param device_arch string|nil Optional device architecture
 --- @param ccache_available boolean Whether ccache is available
-function build_llama_cpp(install_path, source_dir, oneapi_path, device_arch, ccache_available)
+function build_llama_cpp(install_path, source_dir, oneapi_path, ccache_available)
     local build_dir = source_dir .. "/build"
 
     -- Construct cmake command with SYCL flags
@@ -209,10 +135,6 @@ function build_llama_cpp(install_path, source_dir, oneapi_path, device_arch, cca
     if ccache_available then
         table.insert(cmake_args, "-DCMAKE_C_COMPILER_LAUNCHER=ccache")
         table.insert(cmake_args, "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache")
-    end
-
-    if device_arch then
-        table.insert(cmake_args, "-DGGML_SYCL_DEVICE_ARCH=" .. device_arch)
     end
 
     local cmake_cmd = "cmake " .. table.concat(cmake_args, " ")
