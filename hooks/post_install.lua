@@ -39,8 +39,12 @@ end
 --- @param version string Version string
 --- @return string Source directory path
 function find_source_dir(path, version)
-    -- GitHub tarballs extract to {repo}-{tag}/ stripping the leading 'v' or 'b' prefix varies
-    -- Try common patterns
+    -- Check if CMakeLists.txt is directly in the install path (mise flattened the archive)
+    if os.execute("test -f '" .. path .. "/CMakeLists.txt'") == 0 then
+        return path
+    end
+
+    -- GitHub tarballs extract to {repo}-{tag}/ subdirectory
     local patterns = {
         path .. "/llama.cpp-" .. version,
         path .. "/llama.cpp-" .. version:gsub("^v", ""),
@@ -48,14 +52,13 @@ function find_source_dir(path, version)
     }
 
     for _, dir in ipairs(patterns) do
-        local check = os.execute("test -d '" .. dir .. "'")
-        if check == 0 then
+        if os.execute("test -d '" .. dir .. "'") == 0 then
             return dir
         end
     end
 
-    -- Fallback: find any directory matching llama.cpp-*
-    local handle = io.popen("find '" .. path .. "' -maxdepth 1 -type d -name 'llama*' | head -1")
+    -- Fallback: find any directory containing CMakeLists.txt
+    local handle = io.popen("find '" .. path .. "' -maxdepth 2 -name 'CMakeLists.txt' -printf '%h\\n' 2>/dev/null | head -1")
     if handle then
         local result = handle:read("*l")
         handle:close()
@@ -64,7 +67,12 @@ function find_source_dir(path, version)
         end
     end
 
-    error("Could not find extracted llama.cpp source directory in " .. path)
+    -- Debug: show what's actually there
+    local ls = io.popen("ls -la '" .. path .. "' 2>&1")
+    local listing = ls and ls:read("*a") or "unable to list"
+    if ls then ls:close() end
+
+    error("Could not find llama.cpp source in " .. path .. "\nContents:\n" .. listing)
 end
 
 --- Detect Intel oneAPI installation
